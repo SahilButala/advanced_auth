@@ -6,6 +6,12 @@ const AppError = require("../utils/AppError")
 const { StatusCodes } = require("http-status-codes")
 const bycrpt = require("bcrypt")
 const jwt = require("jsonwebtoken")
+const { sendMail } = require("../utils/email")
+
+
+const getAppUrl = () => {
+    return process.env.APP_URL || `http://localhost:${process.env.PORT}`
+}
 
 
 const generateValidToken = (id, email) => {
@@ -24,7 +30,7 @@ class UserRepo extends CrudRepository {
         const { email, password } = data
 
         const user = await this.findByQuery({
-            email : email
+            email: email
         })
 
         if (user) {
@@ -34,10 +40,30 @@ class UserRepo extends CrudRepository {
         const hasPassword = await bycrpt.hash(password, 10)
 
 
-        return await userModel.create({
+        const newUser = await userModel.create({
             ...data,
-            password: hasPassword
+            password: hasPassword,
+            twoFactorEnabled: false,
+            twofactorEnabled: false,
+            role: "user",
+            isEmailVerified: false,
+
         })
+
+        // email verification part
+
+        const verifyToken = generateValidToken(newUser?._id, newUser?.email)
+        const verifyUrl = `${getAppUrl}/v1/auth/verify-email?token=${verifyToken}`
+
+
+
+        await sendMail(newUser?.email, "Verify your email", `<p>please verify your email by clicking this link :</p>
+            <p><a  href="${verifyUrl}">${verifyUrl}</a></p>
+            `)
+
+
+        return newUser
+
     }
 
 

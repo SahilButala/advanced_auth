@@ -10,7 +10,7 @@ const userRoute = require("./user-route")
 
 
 // ----------------- ROUTES -----------------//
-router.use("/users", userRoute)
+router.use("/auth", userRoute)
 // ----------------- ROUTES -----------------//
 
 
