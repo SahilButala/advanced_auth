@@ -6,6 +6,7 @@ const { ConnectDataBase } = require('./db/index.js');
 const GlobalErrorhandler = require("./utils/error-handler.js")
 const dns = require("dns") // for internet issue
 dns.setServers(["8.8.8.8", "1.1.1.1"])
+const cookieParser = require('cookie-parser');
 
 require("dotenv").config()
 
@@ -22,6 +23,7 @@ ConnectDataBase()
 // ----------------- MIDDELWARES -----------------//
 app.use(express.json())
 app.use(express.urlencoded({extended  : true})) 
+app.use(cookieParser())
 // ----------------- MIDDELWARES -----------------//
 
 

@@ -5,6 +5,7 @@ const { UserRepo } = require("../repositories")
 const AppError = require("../utils/AppError")
 const catchAsynchandler = require("../utils/catch-async")
 const paginationResponse = require("../utils/pagination-response")
+const jwt = require("jsonwebtoken")
 
 
 const userRepo = new UserRepo()
@@ -26,7 +27,7 @@ const registerUser = async (data) => {
 }
 
 
-const loginUser = async (data)=> {
+const loginUser = async (data) => {
     const { password, email } = data
 
     if (!password) {
@@ -59,9 +60,33 @@ const updateUserById = async (id, data) => {
     return user
 }
 
+
+const verifyEmailhandler = async (token) => {
+    if (!token) {
+        throw new AppError("verified token is missing")
+    }
+
+    const payload = jwt.verify(token, process.env.JWT_SECRET)
+
+    const user = await userRepo.verifyEmail(payload)
+    return user
+}
+
+const refreshTokenhandler = async (token) => {
+    if (!token) {
+        throw new AppError("invalid token or missing token", StatusCodes.UNAUTHORIZED)
+    }
+
+    const user = await userRepo.refreshToken(token)
+    return user
+
+}
+
 module.exports = {
     registerUser,
     getUsers,
     updateUserById,
-    loginUser
+    loginUser,
+    verifyEmailhandler,
+    refreshTokenhandler
 }

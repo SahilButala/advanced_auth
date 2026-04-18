@@ -31,11 +31,20 @@ exports.loginuser = catchAsync(async (req, res, next) => {
         throw new AppError(message, StatusCodes.BAD_REQUEST)
     }
 
-    const user = await UserService.loginUser({
+    const { user, token, refreshToken } = await UserService.loginUser({
         email: value.email,
         password: value.password
     })
-    return res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "User Login Successfully....", user));
+
+    const isProd = process.env.NODE_ENV === "production"
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 1000
+    })
+    return res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "User Login Successfully....", { user, accessToken: token }));
 
 })
 
@@ -52,5 +61,38 @@ exports.updateById = catchAsync(async (req, res, next) => {
     const user = await UserService.updateUserById(req?.params?.id, req?.body)
 
     return res.status(StatusCodes.OK).json(new ApiRes(200, true, "user updated successfully..", user))
+})
+
+
+// to email verification after register
+exports.verifyEmailhandler = catchAsync(async (req, res) => {
+    const token = req?.query.token
+
+    const user = await UserService.verifyEmailhandler(token)
+    return res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "Email Verified Successfully..", user))
+
+})
+
+exports.refreshTokenhandler = catchAsync(async (req, res) => {
+    const token = req.cookies?.refreshToken;
+
+    const { user, accessToken, refreshToken } = await UserService.refreshTokenhandler(token)
+
+    const isProd = process.env.NODE_ENV === "production"
+
+    res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: "lax",
+        maxAge: 7 * 24 * 60 * 1000
+    })
+
+    res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "Token is refreshed", { user, accessToken }))
+
+})
+
+exports.logout = catchAsync((req, res) => {
+    res.clearCookie("refreshToken", { path: "/" })
+    return res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "Logout Successfully..", null))
 })
 

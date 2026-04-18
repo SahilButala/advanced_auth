@@ -2,6 +2,8 @@
 const nodemailer = require("nodemailer")
 const AppError = require("./AppError")
 const { StatusCodes } = require("http-status-codes")
+const bycrpt = require("bcrypt")
+const jwt = require("jsonwebtoken")
 
 
 const sendMail = async (to , subject  , html  )=>{
@@ -29,7 +31,7 @@ const sendMail = async (to , subject  , html  )=>{
 
 
     await transporter.sendMail({
-        from,
+        from : process.env.EMAIL_FROM || form,
         to,
         subject,
         html
@@ -37,6 +39,23 @@ const sendMail = async (to , subject  , html  )=>{
 
 }
 
+const checkPass = (password , haspass)=>{
+    return bycrpt.compare(password , haspass)
+}
+
+const createRefreshToken = (userId , tokenVersion)=>{
+   const payload = {id : userId , tokenVersion}
+
+   return jwt.sign(payload , process.env.JWT_SECRET , {
+    expiresIn : "30m"
+   })
+}
+
+const verifiedRefrreshToken = (token)=>{
+      return jwt.verify(token , process.env.JWT_SECRET)
+}
 
 
-module.exports = {sendMail}
+
+
+module.exports = {sendMail , createRefreshToken , verifiedRefrreshToken}
