@@ -8,6 +8,7 @@ const bycrpt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const { sendMail, createRefreshToken, verifiedRefrreshToken } = require("../utils/handlers")
 const ApiRes = require("../utils/api-response")
+const crypto = require("crypto")
 
 
 const getAppUrl = () => {
@@ -161,10 +162,62 @@ class UserRepo extends CrudRepository {
              accessToken : newAccessToken,
              refreshToken
         }
+    }
+
+    async forgotPassword(email){
+         const user = await this.findByQuery({
+            email
+         })
+
+         if(!user){
+            throw new AppError("If an account with this email exsist , we will send you reset link" , StatusCodes.OK)
+         }
+
+         const rawToken = crypto.randomBytes(32).toString("hex")
+         
+         const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex")
+
+         user.resetPasswordToken = tokenHash
+         user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000 )// imp expire in 15min
+
+         await user.save()
+
+         const resetUrl = `${getAppUrl()}/api/v1/auth/reset-password?token=${rawToken}`
+
+         await sendMail(user?.email , "Reset Password" , `<p>You Reseted password reset . Click on the link below to reset password</p>
+            <p><a href="${resetUrl}">${resetUrl}</a></p>
+            `)
+
+        return 
+    }
 
 
+    async resetPassword(token , passowrd){
+        console.log(token , passowrd , "reset password repo getting credentials")
+           const tokenHash = crypto.createHash("sha256").update(token).digest("hex")
 
+           const user = await this.findByQuery({
+              resetPasswordToken : tokenHash,
+              resetPasswordExpires : {$gt : new Date()}
+           })
 
+           console.log(user , "user from db reset password")
+
+           if(!user){
+              throw new AppError("invalid or expired token" , StatusCodes.BAD_REQUEST)
+           }
+
+           const newPass = await bycrpt.hash(passowrd , 10)
+           user.password = newPass
+
+           user.resetPasswordToken = undefined
+
+           user.resetPasswordExpires = undefined
+           user.tokenVersion = user?.tokenVersion + 1
+
+           await user?.save()
+
+           return 
     }
 
 }

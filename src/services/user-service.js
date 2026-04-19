@@ -82,11 +82,38 @@ const refreshTokenhandler = async (token) => {
 
 }
 
+const forgotPassword = async (email)=>{
+     if(!email){
+         throw new AppError("email is required" , StatusCodes.BAD_REQUEST)
+     }
+
+     const normalizedEmail = email.toLowerCase().trim()
+
+     const passowrd = await userRepo.forgotPassword(normalizedEmail)
+     return passowrd
+}
+
+
+const resetPassword = async(token , passowrd)=>{
+     if(!token){
+         throw new AppError("reset token is missing " , StatusCodes.BAD_REQUEST)
+     }
+
+     if(!passowrd || passowrd.length < 6 ){
+            throw new AppError("password must be 6 letter long" , StatusCodes.BAD_REQUEST)
+     }
+    
+     const resetpassword = await userRepo.resetPassword(token , passowrd)
+     return resetpassword
+}
+
 module.exports = {
     registerUser,
     getUsers,
     updateUserById,
     loginUser,
     verifyEmailhandler,
-    refreshTokenhandler
+    refreshTokenhandler,
+    forgotPassword,
+    resetPassword
 }

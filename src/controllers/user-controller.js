@@ -96,3 +96,18 @@ exports.logout = catchAsync((req, res) => {
     return res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "Logout Successfully..", null))
 })
 
+
+exports.forgotPassword = catchAsync(async (req, res) => {
+    const { email } = req?.body
+    const password = await UserService.forgotPassword(email)
+    res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "if an account with this email exsist the we will send you reset link to this email"))
+
+})
+
+exports.resetPassword = catchAsync(async (req , res)=>{
+     const {token , password} = req?.body
+
+     const resetpassword = await UserService.resetPassword(token , password)
+      res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "Password Changed Successfully.."))
+})
+
