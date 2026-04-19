@@ -48,8 +48,9 @@ class CrudRepository {
 
   // ----------------- GET ALL DATA  FUNC-----------------//
   async getAll(data) {
+    console.log(data , "data")
     try {
-      const res = await this.model.get({ data })
+      const res = await this.model.find({})
       return res
     } catch (error) {
       console.log(error);

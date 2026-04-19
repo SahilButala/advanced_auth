@@ -46,11 +46,11 @@ const loginUser = async (data) => {
 const getUsers = async (data) => {
     const { page = 1, limit = 10 } = data
     const skip = (parseInt(page) - 1) * limit
-    let mongo = {
-        limit,
-        skip
-    }
-    const { totalItems, row } = await userRepo.getAll(mongo)
+    // let mongo = {
+    //     limit,
+    //     skip
+    // }
+    const { totalItems, row } = await userRepo.getAll()
     return new paginationResponse(Number(page), Math.ceil(totalItems / limit), row?.length, row)
 }
 

@@ -1,6 +1,7 @@
 
 
 const {userController} = require("../../controllers")
+const { authMiddleWare } = require("../../middlewares")
 
 
 
@@ -20,8 +21,8 @@ router.post("/reset-password" , userController.resetPassword)
 
 router.post("/logout" , userController.logout)
 
-
-router.get("/all" , userController.getAllUsers)
+router.use(authMiddleWare.authMiddleware)
+router.get("/all" ,  authMiddleWare.adminAccessOnly , userController.getAllUsers)
 router.patch("/:id" , userController.updateById)
 
 module.exports = router
