@@ -37,7 +37,8 @@ const validLogin = (data) => {
                 'any.required': 'Email is a required field'
             }),
 
-        password: Joi.string().min(8).required()
+        password: Joi.string().min(8).required(),
+        twoFactorCode : Joi.string().optional()
     });
 
     return schema.validate(data)

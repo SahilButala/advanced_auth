@@ -52,3 +52,25 @@ Lets take a look inside the `src` folder
  //  flow  of main code 
 
  // -->modal-->repo-->service-->controller-->routes-->main-route-file--->server file
+
+
+
+ // in this project we used packages
+
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+
+    "google-auth-library": "^10.6.2",
+    
+    "http-status-codes": "^2.2.0",
+    "joi": "^18.1.2",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.2.1",
+    "mysql2": "^3.17.1",
+    "nodemailer": "^8.0.5",
+    "nodemon": "^2.0.22",
+    "sequelize": "^6.31.1",
+    "validator": "^13.15.35",
+    "winston": "^3.8.2"

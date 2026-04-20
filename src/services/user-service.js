@@ -28,7 +28,7 @@ const registerUser = async (data) => {
 
 
 const loginUser = async (data) => {
-    const { password, email } = data
+    const { password, email, twoFactorCode } = data
 
     if (!password) {
         throw new AppError("passowrd is required  to login", StatusCodes.BAD_REQUEST)
@@ -43,15 +43,16 @@ const loginUser = async (data) => {
 }
 
 
-const getUsers = async (data) => {
-    const { page = 1, limit = 10 } = data
-    const skip = (parseInt(page) - 1) * limit
-    // let mongo = {
-    //     limit,
-    //     skip
-    // }
-    const { totalItems, row } = await userRepo.getAll()
-    return new paginationResponse(Number(page), Math.ceil(totalItems / limit), row?.length, row)
+const getUsers = async ({ query, data }) => {
+    const { id, role } = data
+
+    const filter = {}
+
+    const limit = Number(query?.limit) || 10
+    const page = Number(query?.page) || 1
+
+    const users = await userRepo.getAllUsers(filter, data, limit, page)
+    return users
 }
 
 
@@ -82,29 +83,35 @@ const refreshTokenhandler = async (token) => {
 
 }
 
-const forgotPassword = async (email)=>{
-     if(!email){
-         throw new AppError("email is required" , StatusCodes.BAD_REQUEST)
-     }
+const forgotPassword = async (email) => {
+    if (!email) {
+        throw new AppError("email is required", StatusCodes.BAD_REQUEST)
+    }
 
-     const normalizedEmail = email.toLowerCase().trim()
+    const normalizedEmail = email.toLowerCase().trim()
 
-     const passowrd = await userRepo.forgotPassword(normalizedEmail)
-     return passowrd
+    const passowrd = await userRepo.forgotPassword(normalizedEmail)
+    return passowrd
 }
 
 
-const resetPassword = async(token , passowrd)=>{
-     if(!token){
-         throw new AppError("reset token is missing " , StatusCodes.BAD_REQUEST)
-     }
+const resetPassword = async (token, passowrd) => {
+    if (!token) {
+        throw new AppError("reset token is missing ", StatusCodes.BAD_REQUEST)
+    }
 
-     if(!passowrd || passowrd.length < 6 ){
-            throw new AppError("password must be 6 letter long" , StatusCodes.BAD_REQUEST)
-     }
-    
-     const resetpassword = await userRepo.resetPassword(token , passowrd)
-     return resetpassword
+    if (!passowrd || passowrd.length < 6) {
+        throw new AppError("password must be 6 letter long", StatusCodes.BAD_REQUEST)
+    }
+
+    const resetpassword = await userRepo.resetPassword(token, passowrd)
+    return resetpassword
+}
+
+
+const createUserThroughGoogleAuth = async (email, name) => {
+    const user = await userRepo.createUserThroughGoogleAuth(email, name)
+    return user
 }
 
 module.exports = {
@@ -115,5 +122,6 @@ module.exports = {
     verifyEmailhandler,
     refreshTokenhandler,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    createUserThroughGoogleAuth
 }

@@ -10,14 +10,20 @@ const { sendMail, createRefreshToken, verifiedRefrreshToken } = require("../util
 const ApiRes = require("../utils/api-response")
 const crypto = require("crypto")
 
+const otblib = require("otplib")
+const paginationResponse = require("../utils/pagination-response")
+
+
 
 const getAppUrl = () => {
     return process.env.APP_URL || `http://localhost:${process.env.PORT}`
 }
 
 
-const generateAccessValidToken = (id, email, role = null , tokenVersion) => {
-    return jwt.sign({ id, email, role , tokenVersion }, process.env.JWT_SECRET, {
+
+
+const generateAccessValidToken = (id, email, role = null, tokenVersion) => {
+    return jwt.sign({ id, email, role, tokenVersion }, process.env.JWT_SECRET, {
         expiresIn: "30m"
     })
 }
@@ -28,6 +34,7 @@ class UserRepo extends CrudRepository {
         super(userModel)
     }
 
+    // ─── register user ───
     async registerUser(data) {
         const { email, password } = data
 
@@ -76,10 +83,11 @@ class UserRepo extends CrudRepository {
         return newUser
 
     }
+    // ─── register user ───
 
-
+    // ─── login email ───
     async loginUser(data) {
-        const { email, password } = data
+        const { email, password, twoFactorCode } = data
 
         const user = await this.findByQuery({
             email
@@ -95,13 +103,30 @@ class UserRepo extends CrudRepository {
             throw new AppError("password is not correct please type correct password", StatusCodes.BAD_REQUEST)
         }
 
-        if (!user?.isEmailVerified) {
-            throw new AppError("please verify email before login", StatusCodes.FORBIDDEN)
-        }
+        // if (!user?.isEmailVerified) {
+        //     throw new AppError("please verify email before login", StatusCodes.FORBIDDEN)
+        // }
 
-        const token = generateAccessValidToken(user?._id, user?.email , user?.role , user?.tokenVersion )
+        // // two factor configuration
 
-        const refreshToken = createRefreshToken(user?._id , user?.tokenVersion)
+        // if(user?.twoFactorEnabled){
+        //     if(!twoFactorCode || typeof  twoFactorCode !== "string"){
+        //          throw new AppError("Two Factor code is missig " , StatusCodes.UNAUTHORIZED)
+        //     }
+        // }
+
+        // if(!user?.twofactorSecret){
+        //       throw new AppError("Two factor missconfigured this account" , StatusCodes.UNAUTHORIZED)
+        // }
+
+        // verify the code using otpLib
+
+
+
+
+        const token = generateAccessValidToken(user?._id, user?.email, user?.role, user?.tokenVersion)
+
+        const refreshToken = createRefreshToken(user?._id, user?.tokenVersion)
 
         const userRes = user?.toObject() ? user?.toObject() : { ...user }
         delete userRes.password
@@ -112,11 +137,22 @@ class UserRepo extends CrudRepository {
             refreshToken
         }
 
-        
-
-    }   
 
 
+    }
+    // ─── login email ───
+
+    // ─── get all users ───
+    async getAllUsers(filter, data, limit = 1, page = 1) {
+        const total = await userModel.countDocuments(filter)
+        const skip = ((parseInt(page) - 1) * limit)
+
+        const user = await userModel.find(filter).limit(limit).skip(skip)
+        return new paginationResponse(Number(page), Math.ceil(total / limit), total, user)
+    }
+    // ─── get all users ───
+
+    // ─── verify email ───
     async verifyEmail(token) {
         const user = await userModel.findById(token?.id)
 
@@ -133,94 +169,145 @@ class UserRepo extends CrudRepository {
 
         return user
     }
+    // ─── verify email ───
 
+    // ─── refresh token ───
+    async refreshToken(token) {
 
-    async refreshToken(token){
-          
         const payload = verifiedRefrreshToken(token)
 
-        console.log(payload , "payload")
+        console.log(payload, "payload")
 
         const user = await userModel.findById(payload?.id)
 
-        if(!user){
-             throw new AppError("invalid user" , StatusCodes.BAD_REQUEST)
+        if (!user) {
+            throw new AppError("invalid user", StatusCodes.BAD_REQUEST)
         }
 
-        if(user?.tokenVersion !== payload?.tokenVersion){
-            throw new AppError("invalid token validated" , StatusCodes.UNAUTHORIZED)
+        if (user?.tokenVersion !== payload?.tokenVersion) {
+            throw new AppError("invalid token validated", StatusCodes.UNAUTHORIZED)
         }
 
-        const newAccessToken = generateAccessValidToken(user?._id , user?.email , user?.role , user?.tokenVersion)
+        const newAccessToken = generateAccessValidToken(user?._id, user?.email, user?.role, user?.tokenVersion)
 
-        const refreshToken = createRefreshToken(user?._id , user?.tokenVersion)
+        const refreshToken = createRefreshToken(user?._id, user?.tokenVersion)
 
 
         const userRes = user?.toObject() ? user?.toObject() : { ...user }
         delete userRes?.password
 
         return {
-             user : userRes,
-             accessToken : newAccessToken,
-             refreshToken
+            user: userRes,
+            accessToken: newAccessToken,
+            refreshToken
         }
     }
+    // ─── refresh token ───
 
-    async forgotPassword(email){
-         const user = await this.findByQuery({
+
+    // ─── forgetPassword ───
+    async forgotPassword(email) {
+        const user = await this.findByQuery({
             email
-         })
+        })
 
-         if(!user){
-            throw new AppError("If an account with this email exsist , we will send you reset link" , StatusCodes.OK)
-         }
+        if (!user) {
+            throw new AppError("If an account with this email exsist , we will send you reset link", StatusCodes.OK)
+        }
 
-         const rawToken = crypto.randomBytes(32).toString("hex")
-         
-         const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex")
+        const rawToken = crypto.randomBytes(32).toString("hex")
 
-         user.resetPasswordToken = tokenHash
-         user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000 )// imp expire in 15min
+        const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex")
 
-         await user.save()
+        user.resetPasswordToken = tokenHash
+        user.resetPasswordExpires = new Date(Date.now() + 15 * 60 * 1000)// imp expire in 15min
 
-         const resetUrl = `${getAppUrl()}/api/v1/auth/reset-password?token=${rawToken}`
+        await user.save()
 
-         await sendMail(user?.email , "Reset Password" , `<p>You Reseted password reset . Click on the link below to reset password</p>
+        const resetUrl = `${getAppUrl()}/api/v1/auth/reset-password?token=${rawToken}`
+
+        await sendMail(user?.email, "Reset Password", `<p>You Reseted password reset . Click on the link below to reset password</p>
             <p><a href="${resetUrl}">${resetUrl}</a></p>
             `)
 
-        return 
+        return
     }
+    // ─── forgetPassword ───
 
+    // ─── RESET PASSWORD ───
+    async resetPassword(token, passowrd) {
+        console.log(token, passowrd, "reset password repo getting credentials")
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex")
 
-    async resetPassword(token , passowrd){
-        console.log(token , passowrd , "reset password repo getting credentials")
-           const tokenHash = crypto.createHash("sha256").update(token).digest("hex")
+        const user = await this.findByQuery({
+            resetPasswordToken: tokenHash,
+            resetPasswordExpires: { $gt: new Date() }
+        })
 
-           const user = await this.findByQuery({
-              resetPasswordToken : tokenHash,
-              resetPasswordExpires : {$gt : new Date()}
-           })
+        console.log(user, "user from db reset password")
 
-           console.log(user , "user from db reset password")
+        if (!user) {
+            throw new AppError("invalid or expired token", StatusCodes.BAD_REQUEST)
+        }
 
-           if(!user){
-              throw new AppError("invalid or expired token" , StatusCodes.BAD_REQUEST)
-           }
+        const newPass = await bycrpt.hash(passowrd, 10)
+        user.password = newPass
 
-           const newPass = await bycrpt.hash(passowrd , 10)
-           user.password = newPass
+        user.resetPasswordToken = undefined
 
-           user.resetPasswordToken = undefined
+        user.resetPasswordExpires = undefined
+        user.tokenVersion = user?.tokenVersion + 1
 
-           user.resetPasswordExpires = undefined
-           user.tokenVersion = user?.tokenVersion + 1
+        await user?.save()
 
-           await user?.save()
-
-           return 
+        return
     }
+    // ─── RESET PASSWORD ───
+
+
+    //  google auth user
+
+    async createUserThroughGoogleAuth(email, name) {
+        let user = await this.findByQuery({
+            email
+        })
+
+        const cryppassowrd = crypto.randomBytes(16).toString("hex")
+        const hashPassword = await bycrpt.hash(cryppassowrd, 10)
+        console.log(hashPassword, "hash password")
+
+        if (!user) {
+            console.log("if statement executed")
+            user = await userModel.create({
+                email,
+                name,
+                password: hashPassword,
+                role: "user",
+                isEmailVerified: true,
+                twofactorEnabled: false
+
+            })
+        } else {
+            console.log("else statement executed")
+            if (!user?.isEmailVerified) {
+                user.isEmailVerified = true;
+                await user?.save()
+            }
+        }
+        const acceessToken = generateAccessValidToken(user?._id, user?.email, user?.role, user?.tokenVersion)
+
+        const refreshToken = createRefreshToken(user?._id, user?.tokenVersion)
+
+
+        return {
+            acceessToken,
+            refreshToken,
+            user
+        }
+    }
+    //  google auth user
+
+
 
 }
 
