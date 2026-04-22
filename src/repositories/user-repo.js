@@ -9,17 +9,15 @@ const jwt = require("jsonwebtoken")
 const { sendMail, createRefreshToken, verifiedRefrreshToken } = require("../utils/handlers")
 const ApiRes = require("../utils/api-response")
 const crypto = require("crypto")
-
-const otblib = require("otplib")
 const paginationResponse = require("../utils/pagination-response")
+const { authenticator } = require("@otplib/preset-default");
 
+const { generateSecret, generateURI } = require("otplib")
 
 
 const getAppUrl = () => {
     return process.env.APP_URL || `http://localhost:${process.env.PORT}`
 }
-
-
 
 
 const generateAccessValidToken = (id, email, role = null, tokenVersion) => {
@@ -103,27 +101,23 @@ class UserRepo extends CrudRepository {
             throw new AppError("password is not correct please type correct password", StatusCodes.BAD_REQUEST)
         }
 
-        // if (!user?.isEmailVerified) {
-        //     throw new AppError("please verify email before login", StatusCodes.FORBIDDEN)
-        // }
+        if (!user?.isEmailVerified) {
+            throw new AppError("please verify email before login", StatusCodes.FORBIDDEN)
+        }
 
-        // // two factor configuration
+        // two factor configuration
 
-        // if(user?.twoFactorEnabled){
-        //     if(!twoFactorCode || typeof  twoFactorCode !== "string"){
-        //          throw new AppError("Two Factor code is missig " , StatusCodes.UNAUTHORIZED)
-        //     }
-        // }
+        if (user?.twoFactorEnabled) {
+            if (!twoFactorCode || typeof twoFactorCode !== "string") {
+                throw new AppError("Two Factor code is missig ", StatusCodes.UNAUTHORIZED)
+            }
+            if (!user?.twofactorSecret) {
+                throw new AppError("Two factor missconfigured this account", StatusCodes.UNAUTHORIZED)
+            }
+        }
 
-        // if(!user?.twofactorSecret){
-        //       throw new AppError("Two factor missconfigured this account" , StatusCodes.UNAUTHORIZED)
-        // }
 
         // verify the code using otpLib
-
-
-
-
         const token = generateAccessValidToken(user?._id, user?.email, user?.role, user?.tokenVersion)
 
         const refreshToken = createRefreshToken(user?._id, user?.tokenVersion)
@@ -306,6 +300,74 @@ class UserRepo extends CrudRepository {
         }
     }
     //  google auth user
+
+
+    // two factor
+    async twofactor(id) {
+        const user = await userModel.findById(id)
+
+        if (!user) {
+            throw new AppError("User is not found", StatusCodes.BAD_REQUEST)
+        }
+
+        const secret = generateSecret().toString()
+        const issuer = "Auth"
+        const otpAuthUrl = generateURI({
+            issuer: issuer,
+            label: user?.email,
+            secret: secret
+        })
+
+        user.twofactorSecret = secret
+        user.twofactorEnabled = false
+
+
+        await user?.save()
+
+        return {
+            otpAuthUrl,
+            secret
+        }
+
+
+    }
+    // two factor
+
+
+    // two factor verify
+    async twoFactorVerify(code, id) {
+        // 1. Check if the library loaded correctly
+        console.log("AUTH:", authenticator);
+
+        if (!id) {
+            throw new AppError("ID is required", StatusCodes.UNAUTHORIZED);
+        }
+
+        if (!code) {
+            throw new AppError("Verification code is required", StatusCodes.BAD_REQUEST);
+        }
+
+        const user = await userModel.findById(id);
+        if (!user) {
+            throw new AppError("User not found", StatusCodes.NOT_FOUND);
+        }
+
+        if (!user.twofactorSecret) {
+            throw new AppError("2FA is not set up for this account", StatusCodes.BAD_REQUEST);
+        }
+
+        const isValid = authenticator.check(code, user.twofactorSecret);
+
+        if (!isValid) {
+            throw new AppError("Invalid or expired 2FA code", StatusCodes.UNAUTHORIZED);
+        }
+
+        user.twofactorEnabled = true;
+        await user.save(); 
+
+        return 
+    }
+    // two factor verify
 
 
 

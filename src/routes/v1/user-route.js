@@ -31,6 +31,8 @@ router.post("/logout", userController.logout)
 
 // for test rbac model
 router.use(authMiddleWare.authMiddleware)
+router.post("/2fa/setup" , userController.twoFactorHandler )
+router.post("/2fa/verify" , userController.twoFactorVerify )
 router.get("/all", authMiddleWare.adminAccessOnly, userController.getAllUsers)
 
 module.exports = router

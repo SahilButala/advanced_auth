@@ -114,6 +114,28 @@ const createUserThroughGoogleAuth = async (email, name) => {
     return user
 }
 
+
+const twofactor = async (validUser) => {
+    if (!validUser?.id) {
+        throw new AppError("Please provide id ", StatusCodes.BAD_REQUEST)
+    }
+
+    const user = await userRepo.twofactor(validUser?.id)
+    return user
+
+}
+
+const twoFactorVerify = async (code, validUser) => {
+    if (!validUser) {
+        throw new AppError("Unauthorized user", StatusCodes.UNAUTHORIZED)
+    }
+    if (!code) {
+        throw new AppError("Two factor code is needed", StatusCodes.BAD_REQUEST)
+    }
+    const user = await userRepo.twoFactorVerify(code , validUser?.id)
+    return user
+}
+
 module.exports = {
     registerUser,
     getUsers,
@@ -123,5 +145,6 @@ module.exports = {
     refreshTokenhandler,
     forgotPassword,
     resetPassword,
-    createUserThroughGoogleAuth
+    createUserThroughGoogleAuth,
+    twofactor, twoFactorVerify
 }

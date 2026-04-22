@@ -59,7 +59,7 @@ exports.loginuser = catchAsync(async (req, res, next) => {
     const { user, token, refreshToken } = await UserService.loginUser({
         email: value.email,
         password: value.password,
-        twoFactorCode : value?.twoFactorCode || null
+        twoFactorCode: value?.twoFactorCode || null
     })
 
     const isProd = process.env.NODE_ENV === "production"
@@ -77,12 +77,12 @@ exports.loginuser = catchAsync(async (req, res, next) => {
 
 // ───────────────────────────────────── get users ──────────────────────────────────────────
 exports.getAllUsers = catchAsync(async (req, res, next) => {
-    const {id , role} = req?.user
+    const { id, role } = req?.user
     const users = await UserService.getUsers({
-        query : req?.query,
-        data : {
-             role , 
-             id
+        query: req?.query,
+        data: {
+            role,
+            id
         }
     })
     return res.status(StatusCodes.OK).json(new ApiRes(200, true, "Users", users))
@@ -218,7 +218,7 @@ exports.getGoggleAuthCallBackHandler = catchAsync(async (req, res) => {
 
 
     const isProd = process.env.NODE_ENV === "production"
- 
+
     res.cookie("refreshToken", refreshToken, {
         httpOnly: true,
         secure: isProd,
@@ -235,5 +235,28 @@ exports.getGoggleAuthCallBackHandler = catchAsync(async (req, res) => {
 })
 
 // ──────────────────────────────────── google auth call back handler ───────────────────────────────────────────
+
+
+// ───────────────────────────────────── two factor handler ──────────────────────────────────────────
+exports.twoFactorHandler = catchAsync(async (req, res, next) => {
+    const user = req?.user
+
+    const { secret, otpAuthUrl } = await UserService.twofactor(user)
+    res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "2FA setup is done", {
+        otpAuthUrl, secret
+    }))
+})
+// ──────────────────────────────────── two factor handler ───────────────────────────────────────────
+
+
+// ───────────────────────────────────── two factor verify  ──────────────────────────────────────────
+exports.twoFactorVerify = catchAsync(async (req, res, next) => {
+    const user = req?.user
+    const { code } = req?.body
+
+    const users = await UserService.twoFactorVerify(code, user)
+    res.status(StatusCodes.OK).json(new ApiRes(StatusCodes.OK, true, "2FA verify is done", users))
+})
+// ──────────────────────────────────── two factor verify  ───────────────────────────────────────────
 
 
