@@ -10,7 +10,7 @@ const authMiddleware = catchAsync(async (req, res, next) => {
     const authHeader = req?.headers?.authorization
 
     if (!authHeader) {
-        throw new AppError("header is missing or token is invalid", StatusCodes.BAD_REQUEST)
+        throw new AppError("header is missing or token is invalid", StatusCodes.UNAUTHORIZED)
     }
 
     const token = authHeader.split(" ")[1]

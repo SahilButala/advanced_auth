@@ -1,12 +1,13 @@
 const express = require('express');
 
-const { ServerConfig , Logger } = require('./config/index.js');
+const { ServerConfig, Logger } = require('./config/index.js');
 const apiRoutes = require('./routes/index.js');
 const { ConnectDataBase } = require('./db/index.js');
 const GlobalErrorhandler = require("./utils/error-handler.js")
 const dns = require("dns") // for internet issue
 dns.setServers(["8.8.8.8", "1.1.1.1"])
 const cookieParser = require('cookie-parser');
+const cors = require("cors")
 
 require("dotenv").config()
 
@@ -14,7 +15,7 @@ const app = express();
 
 
 // ----------------- DATABASE ENTRY  -----------------//
-ConnectDataBase() 
+ConnectDataBase()
 // ----------------- DATABASE ENTRY  -----------------//
 
 
@@ -22,20 +23,27 @@ ConnectDataBase()
 
 // ----------------- MIDDELWARES -----------------//
 app.use(express.json())
-app.use(express.urlencoded({extended  : true})) 
+app.use(express.urlencoded({ extended: true }))
 app.use(cookieParser())
+app.use(cors({
+    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    methods: ["POST", "GET", "DELETE", "PUT", "PATCH"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"],
+
+}))
 // ----------------- MIDDELWARES -----------------//
 
 
 
 // ----------------- ALL ROUTES -----------------//
-app.use("/api" , apiRoutes)
+app.use("/api", apiRoutes)
 // ----------------- ALL ROUTES -----------------// 
 
 
-app.get("/" , (req, res)=>{
+app.get("/", (req, res) => {
     res.send("Welcome to Node Starter Template")
-}) 
+})
 
 
 // ----------------- SERVER RUNNING -----------------//

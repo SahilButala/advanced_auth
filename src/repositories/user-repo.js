@@ -141,7 +141,7 @@ class UserRepo extends CrudRepository {
         const total = await userModel.countDocuments(filter)
         const skip = ((parseInt(page) - 1) * limit)
 
-        const user = await userModel.find(filter).limit(limit).skip(skip)
+        const user = await userModel.find(filter , "name email role isEmailVerified tokenVersion").limit(limit).skip(skip)
         return new paginationResponse(Number(page), Math.ceil(total / limit), total, user)
     }
     // ─── get all users ───
@@ -187,11 +187,9 @@ class UserRepo extends CrudRepository {
         const refreshToken = createRefreshToken(user?._id, user?.tokenVersion)
 
 
-        const userRes = user?.toObject() ? user?.toObject() : { ...user }
-        delete userRes?.password
 
         return {
-            user: userRes,
+            user: user,
             accessToken: newAccessToken,
             refreshToken
         }
@@ -238,7 +236,7 @@ class UserRepo extends CrudRepository {
             resetPasswordExpires: { $gt: new Date() }
         })
 
-        console.log(user, "user from db reset password")
+     
 
         if (!user) {
             throw new AppError("invalid or expired token", StatusCodes.BAD_REQUEST)
